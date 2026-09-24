@@ -1,0 +1,14 @@
+.local/
+/data/
+backend/target/
+backend/data/
+backend/src/main/resources/static/
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+.idea/
+.vscode/
+*.log
+.env
+!.env.example
+deploy/secrets/

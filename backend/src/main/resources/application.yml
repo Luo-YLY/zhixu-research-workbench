@@ -1,0 +1,39 @@
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18081}
+  shutdown: graceful
+  error:
+    include-message: never
+spring:
+  application:
+    name: research-workbench
+  profiles:
+    default: postgres
+  datasource:
+    hikari:
+      maximum-pool-size: 6
+      connection-timeout: 5000
+  flyway:
+    enabled: true
+  mvc:
+    async:
+      request-timeout: 1800000
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+workbench:
+  data-dir: ${WORKBENCH_DATA_DIR:./data}
+  assistant:
+    provider: ${ASSISTANT_PROVIDER:disabled}
+    timeout-seconds: 180
+    model-api:
+      base-url: ${MODEL_API_BASE_URL:}
+      model: ${MODEL_API_MODEL:}
+      api-key: ${MODEL_API_KEY:}
+  worker:
+    enabled: true
+    interval-ms: 500
+logging:
+  level:
+    local.research.workbench: INFO

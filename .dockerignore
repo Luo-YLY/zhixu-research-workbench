@@ -1,0 +1,13 @@
+.git
+.local
+.env
+**/.env
+**/node_modules
+**/dist
+**/target
+backend/src/main/resources/static
+deploy/secrets
+*.log
+docs
+scripts
+README.md

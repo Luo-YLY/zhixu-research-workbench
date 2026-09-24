@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:${WORKBENCH_DATA_DIR:./data}/workbench;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=FALSE;WRITE_DELAY=0
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver

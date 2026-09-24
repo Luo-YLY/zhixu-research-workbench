@@ -1,0 +1,78 @@
+name: research-workbench
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: research-workbench-app:0.3.0
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2.0
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    restart: unless-stopped
+    stop_grace_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      SERVER_ADDRESS: 0.0.0.0
+      SERVER_PORT: "18081"
+      WORKBENCH_DATA_DIR: /app/data
+      DB_URL: jdbc:postgresql://db:5432/research_workbench
+      DB_USERNAME: research_app
+      ASSISTANT_PROVIDER: disabled
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60.0
+    ports:
+      - "127.0.0.1:18081:18081"
+    volumes:
+      - /srv/appdata/research-workbench/app:/app/data:rw
+    secrets:
+      - db_password
+    networks:
+      - private
+      - access
+
+  db:
+    # Confirm the chosen image tag and pin its digest before first deployment.
+    image: postgres:18.4-bookworm
+    init: true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2.0
+    shm_size: 128mb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: research_workbench
+      POSTGRES_USER: research_app
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - /srv/appdata/research-workbench/postgresql:/var/lib/postgresql:rw
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U research_app -d research_workbench"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    networks:
+      - private
+
+networks:
+  private:
+    driver: bridge
+    internal: true
+  access:
+    driver: bridge
+
+secrets:
+  db_password:
+    file: ./secrets/db_password
