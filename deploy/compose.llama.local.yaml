@@ -1,0 +1,57 @@
+# Local CPU model experiment. Apply after compose.local.yaml.
+# Model files are manually downloaded and SHA-256 checked in .local/models/.
+services:
+  app:
+    environment:
+      ASSISTANT_PROVIDER: ${LOCAL_ASSISTANT_PROVIDER:-model-api}
+      MODEL_API_BASE_URL: http://answer-model:8080/v1
+      MODEL_API_MODEL: qwen3:4b
+      EMBEDDING_PROVIDER: openai
+      EMBEDDING_BASE_URL: http://embed:8080/v1
+      EMBEDDING_MODEL: bge-m3
+      EMBEDDING_REVISION: llama-bge-m3-q8-v1
+    networks:
+      - private
+      - access
+      - model_internal
+
+  embed:
+    image: ghcr.io/ggml-org/llama.cpp@sha256:67cb6d32790ba7a5f840fced683f96c3387c7e0cbd438f6226cbe88e00ede882
+    command: ["-m", "/models/bge-m3-q8_0.gguf", "--embedding", "--pooling", "cls", "--host", "0.0.0.0", "--port", "8080", "--threads", "8", "--ctx-size", "2048", "--parallel", "1"]
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 4g
+    cpus: 6.0
+    restart: unless-stopped
+    volumes:
+      - ../.local/models:/models:ro
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    networks:
+      - model_internal
+
+  answer-model:
+    image: ghcr.io/ggml-org/llama.cpp@sha256:67cb6d32790ba7a5f840fced683f96c3387c7e0cbd438f6226cbe88e00ede882
+    command: ["-m", "/models/qwen3-4b-q4_k_m.gguf", "--host", "0.0.0.0", "--port", "8080", "--threads", "8", "--ctx-size", "8192", "--parallel", "1", "--predict", "4096"]
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 8g
+    cpus: 6.0
+    restart: unless-stopped
+    volumes:
+      - ../.local/models:/models:ro
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    networks:
+      - model_internal
+
+networks:
+  model_internal:
+    driver: bridge
+    internal: true

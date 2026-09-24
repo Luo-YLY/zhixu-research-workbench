@@ -1,0 +1,12 @@
+# Windows Docker Desktop Model Runner experiment; apply after compose.local.yaml.
+# Models run in Docker Desktop's sandbox, outside this Compose project.
+services:
+  app:
+    environment:
+      ASSISTANT_PROVIDER: model-api
+      MODEL_API_BASE_URL: http://model-runner.docker.internal/engines/v1
+      MODEL_API_MODEL: hf.co/Qwen/Qwen3-4B-GGUF:Q4_K_M
+      EMBEDDING_PROVIDER: openai
+      EMBEDDING_BASE_URL: http://model-runner.docker.internal/engines/v1
+      EMBEDDING_MODEL: hf.co/ggml-org/bge-m3-Q8_0-GGUF:Q8_0
+      EMBEDDING_REVISION: dmr-bge-m3-q8-v1

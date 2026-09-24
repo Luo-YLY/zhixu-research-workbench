@@ -175,4 +175,10 @@ class ModelApiGatewayTest {
         assertThat(new ModelApiGateway("http://127.0.0.1:9/v1", "model", "key\r\ninjected: value", 5)
                 .status().available()).isFalse();
     }
+
+    @Test void permitsDockerDesktopModelRunnerWithoutHostTcp() {
+        var api = new ModelApiGateway("http://model-runner.docker.internal/engines/v1",
+                "hf.co/Qwen/Qwen3-4B-GGUF:Q4_K_M", "", 5);
+        assertThat(api.status().available()).isTrue();
+    }
 }

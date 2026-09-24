@@ -1,0 +1,36 @@
+# Apply after compose.yaml for an isolated Windows development stack.
+# Docker Desktop's WSL data disk should be placed on D: before first startup.
+name: research-workbench-local
+
+services:
+  app:
+    image: research-workbench-app:0.5.0-local
+    build:
+      args:
+        NPM_REGISTRY: https://registry.npmmirror.com/
+        MAVEN_MIRROR_URL: https://maven.aliyun.com/repository/public
+    ports: !override
+      - "127.0.0.1:18085:18081"
+    volumes: !override
+      - local_app_data:/app/data:rw
+
+  db:
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes: !override
+      - local_pg_data:/var/lib/postgresql:rw
+    networks: !override
+      - private
+      - db_access
+
+secrets:
+  db_password:
+    file: ../.local/docker-db-password
+
+volumes:
+  local_app_data:
+  local_pg_data:
+
+networks:
+  db_access:
+    driver: bridge

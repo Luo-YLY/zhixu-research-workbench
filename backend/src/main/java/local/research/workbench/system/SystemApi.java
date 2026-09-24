@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import local.research.workbench.assistant.AssistantGateway;
+import local.research.workbench.literature.LiteratureEmbeddings;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,7 +15,10 @@ public class SystemApi {
     private final JdbcTemplate jdbc;
     private final DataSource dataSource;
     private final AssistantGateway assistant;
-    public SystemApi(JdbcTemplate jdbc,DataSource dataSource,AssistantGateway assistant) { this.jdbc=jdbc; this.dataSource=dataSource;this.assistant=assistant; }
+    private final LiteratureEmbeddings embeddings;
+    public SystemApi(JdbcTemplate jdbc,DataSource dataSource,AssistantGateway assistant,LiteratureEmbeddings embeddings) {
+        this.jdbc=jdbc;this.dataSource=dataSource;this.assistant=assistant;this.embeddings=embeddings;
+    }
     private Map<String,String> capability(String key,String label,String status,String description) {
         return Map.of("key",key,"label",label,"status",status,"description",description);
     }
@@ -23,7 +27,12 @@ public class SystemApi {
         String database;
         try(var connection=dataSource.getConnection()) { database=connection.getMetaData().getDatabaseProductName(); }
         boolean assistantReady=assistant.status().available();
-        return Map.of("appName","研究工作台","version","0.4.0","database",database,"executionMode","DEMO",
+        boolean embeddingsReady=embeddings.available();
+        String ragStatus=assistantReady&&embeddingsReady?"AVAILABLE":(assistantReady||embeddingsReady?"PARTIAL":"CONFIGURATION_REQUIRED");
+        String ragDescription="文献入库、来源和页码引用、词法检索可用；"
+                +(embeddingsReady?"双向中英语义检索已配置；":"双向中英语义检索待配置 embedding；")
+                +(assistantReady?"双语对照翻译与证据回答已配置":"双语对照翻译与证据回答待配置模型");
+        return Map.of("appName","研究工作台","version","0.5.0","database",database,"executionMode","DEMO",
                 "capabilities",List.of(
                         capability("assistant","页面研究助手",assistantReady?"AVAILABLE":"CONFIGURATION_REQUIRED",
                                 assistantReady?"上下文对话界面已就绪，提交时使用已配置模型；研究流程仍为DEMO":"上下文对话界面已就绪，模型接口待配置"),
@@ -31,8 +40,7 @@ public class SystemApi {
                         capability("approval","人工审批","AVAILABLE","核对任务规范后确认或退回"),
                         capability("artifact","产物归档","AVAILABLE","真实文件下载与SHA-256完整性校验"),
                         capability("codex","Codex研究执行器","PLANNED","后续接入研究工作流；独立于讨论助手，当前不执行真实研究步骤"),
-                        capability("rag","文献与RAG",assistantReady?"AVAILABLE":"CONFIGURATION_REQUIRED",
-                                assistantReady?"文献入库、页码引用和词法检索可用；已配置模型可基于命中证据回答":"文献入库、页码引用和词法检索可用；生成回答待配置模型"),
+                        capability("rag","文献与RAG",ragStatus,ragDescription),
                         capability("schedule","周期任务与每日计划","AVAILABLE","每天或每周生成待办，支持手动事项、完成记录和暂停；不会自动启动DEMO研究运行"),
                         capability("collaboration","多人及多Agent","PLANNED","当前仅供本机单用户使用")));
     }

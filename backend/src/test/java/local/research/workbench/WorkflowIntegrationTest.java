@@ -156,7 +156,7 @@ class WorkflowIntegrationTest {
         mvc.perform(get("/api/assistant/status")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.provider").value("UNCONFIGURED")).andExpect(jsonPath("$.available").value(false));
         mvc.perform(get("/api/system")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.version").value("0.4.0"))
+                .andExpect(jsonPath("$.version").value("0.5.0"))
                 .andExpect(jsonPath("$.capabilities[0].status").value("CONFIGURATION_REQUIRED"));
         String response=mvc.perform(post("/api/assistant/sessions").contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"未配置模型\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();

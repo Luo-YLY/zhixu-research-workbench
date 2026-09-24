@@ -3,7 +3,8 @@
 FROM node:24-bookworm-slim AS web
 WORKDIR /source/frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+RUN npm ci --no-audit --no-fund --registry="$NPM_REGISTRY" --replace-registry-host=always --fetch-retries=5
 COPY frontend/ ./
 RUN npm run build
 
@@ -12,7 +13,14 @@ WORKDIR /source
 COPY backend/pom.xml backend/pom.xml
 COPY backend/src/ backend/src/
 COPY --from=web /source/frontend/dist/ backend/src/main/resources/static/
-RUN mvn -B -ntp -f backend/pom.xml -DskipTests package
+ARG MAVEN_MIRROR_URL=
+RUN --mount=type=cache,target=/root/.m2 \
+    if [ -n "$MAVEN_MIRROR_URL" ]; then \
+      printf '<settings><mirrors><mirror><id>local-mirror</id><mirrorOf>central</mirrorOf><url>%s</url></mirror></mirrors></settings>\n' "$MAVEN_MIRROR_URL" > /tmp/maven-settings.xml && \
+      mvn -B -ntp -s /tmp/maven-settings.xml -f backend/pom.xml -DskipTests package; \
+    else \
+      mvn -B -ntp -f backend/pom.xml -DskipTests package; \
+    fi
 
 FROM eclipse-temurin:21-jre
 WORKDIR /opt/workbench

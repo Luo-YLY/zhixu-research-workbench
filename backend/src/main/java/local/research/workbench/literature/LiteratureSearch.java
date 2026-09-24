@@ -45,16 +45,20 @@ public class LiteratureSearch {
                 double idf=Math.log(1+(chunks.size()-found+0.5)/(found+0.5));
                 score+=idf*(tf*2.2)/(tf+1.2*(0.25+0.75*length/average));
             }
-            if(score>0) hits.add(new LiteratureApi.Hit(chunk.chunkId(),chunk.documentId(),chunk.title(),chunk.fileName(),
-                    chunk.pageNumber(),chunk.chunkNumber(),chunk.documentSha256(),chunk.chunkSha256(),
-                    chunk.content(),Math.round(score*10000.0)/10000.0,
-                    "/api/literature/documents/"+chunk.documentId()+"/file"+
-                            (chunk.fileName().toLowerCase(Locale.ROOT).endsWith(".pdf")?"#page="+chunk.pageNumber():"")));
+            if(score>0) hits.add(hit(chunk,Math.round(score*10000.0)/10000.0));
         }
         hits.sort(Comparator.comparingDouble(LiteratureApi.Hit::score).reversed()
                 .thenComparing(LiteratureApi.Hit::documentId).thenComparingInt(LiteratureApi.Hit::pageNumber)
                 .thenComparingInt(LiteratureApi.Hit::chunkNumber));
         return hits.subList(0,Math.min(limit,hits.size()));
+    }
+
+    static LiteratureApi.Hit hit(LiteratureStore.IndexedChunk chunk,double score) {
+        return new LiteratureApi.Hit(chunk.chunkId(),chunk.documentId(),chunk.title(),chunk.fileName(),
+                chunk.pageNumber(),chunk.chunkNumber(),chunk.documentSha256(),chunk.chunkSha256(),
+                chunk.content(),score,"/api/literature/documents/"+chunk.documentId()+"/file"+
+                (chunk.fileName().toLowerCase(Locale.ROOT).endsWith(".pdf")?"#page="+chunk.pageNumber():""),
+                null,LiteratureBilingual.language(chunk.content()),null);
     }
 
     static List<String> tokens(String text) {

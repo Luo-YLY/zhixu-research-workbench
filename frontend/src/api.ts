@@ -48,5 +48,5 @@ export const terminal = (status: string) => ['COMPLETED', 'FAILED', 'CANCELLED',
 export const statusLabel = (status: string): string => ({
   QUEUED: '排队中', RUNNING: '运行中', WAITING_APPROVAL: '等待审批', COMPLETED: '已完成',
   FAILED: '失败', CANCELLED: '已取消', REJECTED: '已退回', PENDING: '待处理',
-  SUCCEEDED: '已通过', APPROVED: '已接受', AVAILABLE: '已实现', PLANNED: '待接入', CONFIGURATION_REQUIRED: '待配置',
+  SUCCEEDED: '已通过', APPROVED: '已接受', AVAILABLE: '已实现', PARTIAL: '部分可用', PLANNED: '待接入', CONFIGURATION_REQUIRED: '待配置',
 }[status] || status)

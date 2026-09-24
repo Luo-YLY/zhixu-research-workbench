@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import Icon from './Icon.vue'
 import type { Project } from './api'
-import { answerLiterature, listLiterature, safeLiteratureSource, searchLiterature, uploadLiterature } from './literature-api'
+import { answerLiterature, indexLiterature, listLiterature, safeLiteratureSource, searchLiterature, uploadLiterature } from './literature-api'
 import type { LiteratureAnswer, LiteratureDocument, LiteratureSearchResult } from './literature-api'
 import './literature.css'
 
@@ -19,11 +19,14 @@ const loading = ref(false)
 const searching = ref(false)
 const asking = ref(false)
 const uploading = ref(false)
+const indexing = ref(false)
 const error = ref('')
 const notice = ref('')
 const message = (value: unknown) => value instanceof Error ? value.message : '操作未完成'
 const bytes = (value: number) => value < 1024 * 1024 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`
 const date = (value: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(value))
+const semanticStatusLabel = (value: string) => ({ READY: '已完成', PARTIAL: '部分完成', INDEX_REQUIRED: '待建立',
+  FAILED: '语义检索暂不可用', UNCONFIGURED: '未配置向量模型' }[value] || value)
 
 watch(() => props.projects, projects => {
   if (!projects.some(p => p.id === projectId.value)) projectId.value = projects[0]?.id || ''
@@ -68,6 +71,20 @@ async function search() {
   finally { searching.value = false }
 }
 
+async function buildIndex() {
+  if (!projectId.value || !documents.value.length) return
+  error.value = ''; notice.value = ''; indexing.value = true
+  const selectedProject = projectId.value; const selectedDocument = documentId.value
+  try {
+    const result = await indexLiterature(selectedProject, selectedDocument)
+    if (projectId.value === selectedProject && documentId.value === selectedDocument) {
+      notice.value = `跨语言索引：${result.indexedChunks}/${result.totalChunks} 段已完成（本次新增 ${result.newlyIndexed} 段）。${result.indexedChunks < result.totalChunks ? '点击按钮继续建立剩余索引。' : '现在可以用中英文交叉检索。'}`
+      searchResult.value = null; answer.value = null
+    }
+  } catch (cause) { if (projectId.value === selectedProject) error.value = message(cause) }
+  finally { indexing.value = false }
+}
+
 async function ask() {
   if (!projectId.value || !query.value.trim()) return
   error.value = ''; answer.value = null; asking.value = true
@@ -76,7 +93,19 @@ async function ask() {
     const result = await answerLiterature(selectedProject, question, selectedDocument)
     if (projectId.value === selectedProject && documentId.value === selectedDocument && query.value.trim() === question) {
       answer.value = result
-      searchResult.value = { query: question, retrievalVersion: result.retrievalVersion, hits: result.citations }
+      searchResult.value = { query: question, retrievalVersion: result.retrievalVersion, hits: result.citations,
+        semanticStatus: result.semanticStatus, translationStatus: result.translationStatus,
+        translationModel: result.translationModel }
+      asking.value = false
+      if (result.citations.length) {
+        searching.value = true
+        try {
+          const translated = await searchLiterature(selectedProject, question, selectedDocument)
+          if (projectId.value === selectedProject && documentId.value === selectedDocument && query.value.trim() === question) searchResult.value = translated
+        } catch (cause) {
+          if (projectId.value === selectedProject && documentId.value === selectedDocument) notice.value = `双语回答已显示，证据译文暂不可用：${message(cause)}`
+        } finally { searching.value = false }
+      }
     }
   } catch (cause) { if (projectId.value === selectedProject && documentId.value === selectedDocument) error.value = message(cause) }
   finally { asking.value = false }
@@ -85,7 +114,7 @@ async function ask() {
 
 <template>
   <div class="literature-page">
-    <div class="literature-intro"><span class="tag green-tag">文献证据</span><p>原文件按项目保存，检索结果可回到对应页并核对文件哈希。模型回答仅在服务端配置模型后可用，回答仍需人工核对引用。</p></div>
+    <div class="literature-intro"><span class="tag green-tag">文献证据</span><p>原文件按项目保存，检索结果可回到对应页并核对文件哈希。跨语言检索需先建立向量索引；译文和双语回答由模型生成，仍需对照原文及引用核查。</p></div>
     <div v-if="error" class="form-error" role="alert">{{ error }}</div>
     <div v-if="notice" class="literature-notice" role="status">{{ notice }}</div>
     <section class="panel literature-panel">
@@ -118,11 +147,11 @@ async function ask() {
         <select id="literature-document-scope" v-model="documentId" :disabled="!documents.length"><option value="">当前项目的全部文献</option><option v-for="item in documents" :key="item.id" :value="item.id">{{ item.title }} · {{ item.fileName }}</option></select>
         <label for="literature-query">研究问题或关键词</label>
         <textarea id="literature-query" v-model="query" rows="3" maxlength="1000" placeholder="例如：这篇文献如何处理未来信息？"></textarea>
-        <div class="literature-actions"><button class="btn secondary" :disabled="searching || asking || !projectId || !query.trim()" @click="search"><Icon name="book" :size="16" />{{ searching ? '正在检索…' : '检索证据' }}</button><button class="btn primary" :disabled="asking || searching || !projectId || !query.trim()" @click="ask"><Icon name="chat" :size="16" />{{ asking ? '正在回答…' : '基于证据回答' }}</button></div>
-        <p class="literature-muted">检索无需模型；“基于证据回答”会将问题和命中的原文片段发送给已配置的模型。</p>
+        <div class="literature-actions"><button class="btn secondary" :disabled="indexing || searching || asking || !documents.length" @click="buildIndex"><Icon name="book" :size="16" />{{ indexing ? '正在建立索引…' : '建立跨语言索引' }}</button><button class="btn secondary" :disabled="indexing || searching || asking || !projectId || !query.trim()" @click="search"><Icon name="book" :size="16" />{{ searching ? '正在检索…' : '检索证据' }}</button><button class="btn primary" :disabled="indexing || asking || searching || !projectId || !query.trim()" @click="ask"><Icon name="chat" :size="16" />{{ asking ? '正在回答…' : '基于证据回答' }}</button></div>
+        <p class="literature-muted">索引会将原文片段发送给配置的向量模型；检索会发送问题，译文和回答会将命中原文发送给配置的回答模型。未配置模型时仍可使用原有词法检索。</p>
       </div>
-      <div v-if="answer" class="literature-answer"><strong>{{ answer.status === 'NO_EVIDENCE' ? '证据不足' : '模型回答 · 待核对' }}</strong><p>{{ answer.answer }}</p></div>
-      <div v-if="searchResult" class="literature-results"><div class="literature-results-title"><strong>检索证据</strong><small>{{ searchResult.retrievalVersion }} · {{ searchResult.hits.length }} 条</small></div><p v-if="!searchResult.hits.length" class="literature-muted">没有找到相关原文片段。</p><article v-for="(hit, index) in searchResult.hits" :key="hit.chunkId" class="literature-hit"><div><strong>[C{{ index + 1 }}] {{ hit.title }} · {{ hit.fileName.toLowerCase().endsWith('.pdf') ? `第 ${hit.pageNumber} 页` : '文本文件' }}</strong><a v-if="safeLiteratureSource(hit.sourceUrl)" :href="safeLiteratureSource(hit.sourceUrl)" target="_blank" rel="noopener noreferrer">打开出处 <Icon name="arrow" :size="14" /></a></div><p>{{ hit.excerpt }}</p><details><summary>证据标识</summary><code>文件 {{ hit.documentSha256 }}<br />片段 {{ hit.chunkSha256 }}</code></details></article></div>
+      <div v-if="answer" class="literature-answer"><strong>{{ answer.status === 'NO_EVIDENCE' ? '证据不足' : `模型回答 · ${answer.translationModel} · 双语生成 · 待核对` }}</strong><div class="literature-parallel"><div><small>中文回答</small><p>{{ answer.answerZh }}</p></div><div><small>English answer</small><p>{{ answer.answerEn }}</p></div></div></div>
+        <div v-if="searchResult" class="literature-results"><div class="literature-results-title"><strong>检索证据</strong><small>{{ searchResult.retrievalVersion }} · {{ searchResult.hits.length }} 条</small></div><p class="literature-muted">跨语言索引：{{ semanticStatusLabel(searchResult.semanticStatus) }}<template v-if="searchResult.totalChunks !== undefined">（{{ searchResult.indexedChunks }}/{{ searchResult.totalChunks }} 段）</template> · 对照译文：{{ searchResult.translationStatus === 'GENERATED_UNVERIFIED' ? `由 ${searchResult.translationModel} 生成，待核对` : searchResult.translationStatus === 'PARTIAL' ? '部分生成成功，未译片段仍显示原文' : searchResult.translationStatus === 'UNCONFIGURED' ? '未配置回答模型' : searchResult.translationStatus === 'FAILED' ? '生成失败，仅显示原文' : searchResult.translationStatus === 'NOT_REQUESTED' && searching ? '正在生成…' : '暂无' }}</p><p v-if="!searchResult.hits.length" class="literature-muted">没有找到相关原文片段。若使用另一种语言提问，请先为文献建立跨语言索引。</p><article v-for="(hit, index) in searchResult.hits" :key="hit.chunkId" class="literature-hit"><div><strong>[C{{ index + 1 }}] {{ hit.title }} · {{ hit.fileName.toLowerCase().endsWith('.pdf') ? `第 ${hit.pageNumber} 页` : '文本文件' }}</strong><a v-if="safeLiteratureSource(hit.sourceUrl)" :href="safeLiteratureSource(hit.sourceUrl)" target="_blank" rel="noopener noreferrer">打开出处 <Icon name="arrow" :size="14" /></a></div><div class="literature-parallel"><div><small>原文 · {{ hit.originalLanguage === 'zh' ? '中文' : 'English' }}</small><p>{{ hit.excerpt }}</p></div><div v-if="hit.translation"><small>模型译文 · {{ hit.translationLanguage === 'zh' ? '中文' : 'English' }} · 待核对</small><p>{{ hit.translation }}</p></div></div><details><summary>证据标识</summary><code>文件 {{ hit.documentSha256 }}<br />片段 {{ hit.chunkSha256 }}</code></details></article></div>
     </section>
   </div>
 </template>

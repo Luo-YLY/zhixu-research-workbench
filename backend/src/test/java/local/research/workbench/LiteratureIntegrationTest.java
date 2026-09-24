@@ -8,6 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import local.research.workbench.literature.LiteratureService;
+import local.research.workbench.literature.LiteratureEmbeddingStore;
+import local.research.workbench.literature.LiteratureStore;
 import local.research.workbench.project.ProjectApi;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -30,6 +32,8 @@ import org.springframework.test.web.servlet.MockMvc;
 class LiteratureIntegrationTest {
     @Autowired ProjectApi projects;
     @Autowired LiteratureService service;
+    @Autowired LiteratureEmbeddingStore embeddings;
+    @Autowired LiteratureStore literatureStore;
     @Autowired MockMvc mvc;
 
     @Test void importsSourcesWithPageCitationsAndChecksIntegrity() throws Exception {
@@ -98,6 +102,20 @@ class LiteratureIntegrationTest {
         mvc.perform(post("/api/literature/answer").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"projectId\":\""+projectId+"\",\"documentId\":\""+privateId+"\",\"question\":\"private\"}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test void storesEmbeddingsInProjectScopedIndex() throws Exception {
+        String projectId=projects.create(new ProjectApi.CreateProject("向量持久化测试","")).id();
+        var file=new MockMultipartFile("file","vector.txt","text/plain","factor quality".getBytes(StandardCharsets.UTF_8));
+        mvc.perform(multipart("/api/literature/documents").file(file).param("projectId",projectId)
+                .param("title","向量测试")).andExpect(status().isOk());
+        var chunk=literatureStore.chunks(projectId,null).getFirst();
+        embeddings.put(chunk,"test-model",new float[]{0.6f,0.8f});
+        var loaded=embeddings.load(projectId,null,"test-model").get(chunk.chunkId());
+        assertThat(loaded.chunkSha256()).isEqualTo(chunk.chunkSha256());
+        assertThat(loaded.vector()).containsExactly(0.6f,0.8f);
+        String other=projects.create(new ProjectApi.CreateProject("向量隔离测试","")).id();
+        assertThat(embeddings.load(other,null,"test-model")).isEmpty();
     }
 
     private byte[] twoPagePdf() throws Exception {

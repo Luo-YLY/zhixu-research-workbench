@@ -31,4 +31,11 @@ public class AssistantProviderRouter implements AssistantGateway {
             default -> throw new IllegalStateException("模型暂未连接；请先在服务端配置模型提供方。");
         };
     }
+    @Override public String answerJson(String prompt,BooleanSupplier cancelled)throws Exception {
+        return switch(provider) {
+            case "codex" -> codex.answerJson(prompt,cancelled);
+            case "model-api" -> modelApi.answerJson(prompt,cancelled);
+            default -> throw new IllegalStateException("模型暂未连接；请先在服务端配置模型提供方。");
+        };
+    }
 }

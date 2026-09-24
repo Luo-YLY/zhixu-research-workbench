@@ -24,6 +24,13 @@ spring:
       max-request-size: 21MB
 workbench:
   data-dir: ${WORKBENCH_DATA_DIR:./data}
+  literature:
+    embedding:
+      provider: ${EMBEDDING_PROVIDER:disabled}
+      base-url: ${EMBEDDING_BASE_URL:}
+      model: ${EMBEDDING_MODEL:}
+      api-key: ${EMBEDDING_API_KEY:}
+      revision: ${EMBEDDING_REVISION:v1}
   assistant:
     provider: ${ASSISTANT_PROVIDER:disabled}
     timeout-seconds: 180

@@ -20,10 +20,15 @@ public class LiteratureApi {
     public record Document(String id,String projectId,String title,String fileName,String mediaType,
                            String sha256,long sizeBytes,int pageCount,int chunkCount,Instant createdAt) {}
     public record Hit(String chunkId,String documentId,String title,String fileName,int pageNumber,int chunkNumber,
-                      String documentSha256,String chunkSha256,String excerpt,double score,String sourceUrl) {}
-    public record SearchResult(String query,String retrievalVersion,List<Hit> hits) {}
+                      String documentSha256,String chunkSha256,String excerpt,double score,String sourceUrl,
+                      String translation,String originalLanguage,String translationLanguage) {}
+    public record SearchResult(String query,String retrievalVersion,List<Hit> hits,
+                               String semanticStatus,String translationStatus,String translationModel,int indexedChunks,int totalChunks) {}
+    public record IndexRequest(@NotNull UUID projectId,UUID documentId) {}
+    public record IndexResult(String modelId,int indexedChunks,int totalChunks,int newlyIndexed) {}
     public record AskRequest(@NotNull UUID projectId,UUID documentId,@NotBlank @Size(max=1000) String question) {}
-    public record Answer(String status,String answer,String retrievalVersion,List<Hit> citations) {}
+    public record Answer(String status,String answer,String answerZh,String answerEn,String retrievalVersion,
+                         List<Hit> citations,String semanticStatus,String translationStatus,String translationModel) {}
 
     private final LiteratureService service;
     public LiteratureApi(LiteratureService service) { this.service=service; }
@@ -48,6 +53,11 @@ public class LiteratureApi {
     public SearchResult search(@RequestParam UUID projectId,@RequestParam String q,
                                @RequestParam(required=false) UUID documentId,@RequestParam(defaultValue="5") int limit) {
         return service.search(projectId.toString(),documentId==null?null:documentId.toString(),q,limit);
+    }
+
+    @PostMapping("/index")
+    public IndexResult index(@Valid @RequestBody IndexRequest request) {
+        return service.index(request.projectId().toString(),request.documentId()==null?null:request.documentId().toString());
     }
 
     @PostMapping("/answer")
