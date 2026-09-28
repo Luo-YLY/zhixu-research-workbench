@@ -10,6 +10,7 @@ services:
       EMBEDDING_BASE_URL: http://embed:8080/v1
       EMBEDDING_MODEL: bge-m3
       EMBEDDING_REVISION: llama-bge-m3-q8-v1
+      EMBEDDING_MIN_COSINE: "0.45"
     networks:
       - private
       - access
@@ -17,7 +18,7 @@ services:
 
   embed:
     image: ghcr.io/ggml-org/llama.cpp@sha256:67cb6d32790ba7a5f840fced683f96c3387c7e0cbd438f6226cbe88e00ede882
-    command: ["-m", "/models/bge-m3-q8_0.gguf", "--embedding", "--pooling", "cls", "--host", "0.0.0.0", "--port", "8080", "--threads", "8", "--ctx-size", "2048", "--parallel", "1"]
+    command: ["-m", "/models/bge-m3-q8_0.gguf", "--embedding", "--pooling", "cls", "--host", "0.0.0.0", "--port", "8080", "--threads", "8", "--ctx-size", "2048", "--ubatch-size", "2048", "--parallel", "1"]
     user: "10001:10001"
     read_only: true
     cap_drop: [ALL]

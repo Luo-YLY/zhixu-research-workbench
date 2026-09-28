@@ -15,8 +15,12 @@ import org.springframework.stereotype.Component;
 /** Small, deterministic lexical baseline. A versioned score makes retrieval regression measurable. */
 @Component
 public class LiteratureSearch {
-    public static final String VERSION = "lexical-bm25-v1";
+    public static final String VERSION = "lexical-bm25-v2";
     private static final Pattern WORDS=Pattern.compile("[A-Za-z0-9]+|[\\p{IsHan}]+");
+    private static final Set<String> ENGLISH_STOPWORDS=Set.of(
+            "a","an","and","are","as","at","be","by","can","do","does","for","from",
+            "how","in","into","is","it","of","on","or","the","their","this","to",
+            "was","were","what","when","which","who","will","with","would");
 
     public List<LiteratureApi.Hit> rank(String query,List<LiteratureStore.IndexedChunk> chunks,int limit) {
         var terms=new HashSet<>(tokens(query));
@@ -69,7 +73,7 @@ public class LiteratureSearch {
             if(Character.UnicodeScript.of(word.codePointAt(0))==Character.UnicodeScript.HAN) {
                 if(word.length()==1) tokens.add(word);
                 else for(int i=0;i<word.length()-1;i++) tokens.add(word.substring(i,i+2));
-            } else if(word.length()>1) tokens.add(word);
+            } else if(word.length()>1&&!ENGLISH_STOPWORDS.contains(word)) tokens.add(word);
         }
         return tokens;
     }

@@ -4,11 +4,11 @@
 
 项目内导入 PDF、UTF-8 TXT 或 Markdown；原文件保存在 `WORKBENCH_DATA_DIR/literature/`，数据库保存标题、文件 SHA-256、大小、页数、片段数与导入时间。PDF 逐页提取文字，切块始终留在同一页。相同文件哈希在同一项目内拒绝重复导入；修改后的文件会成为另一条独立记录，旧记录与引用不变。
 
-“检索证据”保留版本为 `lexical-bm25-v1` 的词法基线。配置多语言 embedding 模型并为文献建立索引后，使用 `hybrid-bm25-embedding-v1`，按倒数排名融合词法与语义检索；中文问题可以召回英文片段，英文问题也可以召回中文片段。每次最多为当前项目或选中文献补建 200 段索引；旧文献无需重新上传，可以多次点击直到完成。索引保存在 PostgreSQL，并与模型地址、名称、显式 `EMBEDDING_REVISION` 和原始片段 SHA-256 绑定。模型权重更新后应变更 revision 并重建索引。未配置或未完成索引时，页面明确显示状态。
+“检索证据”的词法版本为 `lexical-bm25-v2`；`lexical-bm25-v1` 是历史基线。配置多语言 embedding 模型并为文献建立索引后，使用 `hybrid-bm25-embedding-v2`：以最接近问题的向量片段为基准筛选候选，词法匹配只在候选内小幅加分；尚未建索引的片段仍可通过词法检索。英文词法检索会忽略常见功能词。这样可避免一篇长研报的免责声明仅凭英文通用词压过更相关的中文证据。本地 BGE-M3 的最小余弦相似度设为 0.45；其他向量模型可通过 `EMBEDDING_MIN_COSINE` 单独校准，默认值 0.30。阈值仍需用固定问题集验证，不能视为相关性保证。每次最多为当前项目或选中文献补建 200 段索引；新增文献也需补建。索引保存在 PostgreSQL，并与模型地址、名称、显式 `EMBEDDING_REVISION` 和原始片段 SHA-256 绑定。模型权重更新后应变更 revision 并重建索引。未配置或未完成索引时，页面明确显示覆盖数与缺口。
 
 结果始终包含原文片段、PDF 物理页码、原文件与片段哈希以及可打开的原文件地址。回答模型可为前五个片段生成反方向译文，页面将原文与译文并列展示并标注模型来源；译文生成失败时只显示原文。译文不参与原文件哈希或引用定位。可检索选定项目的全部文献，或进一步限定到其中一篇；两种范围都由后端校验。打开原文件时重新核对 SHA-256；文件缺失或改变会报错。
 
-“基于证据回答”只在服务端已有 `ASSISTANT_PROVIDER` 配置且可用时调用该模型。它把当前问题和前五个命中片段传给模型，要求分别输出中文和英文回答，并在两种语言的事实陈述后使用 `[C1]` 等编号；无命中时不调用模型，无引用或引用超出范围时拒绝展示回答。回答接口先返回双语文字与原文引用，页面随即单独请求证据译文；译文最多处理前五条、每批最多三条，失败批次逐条重试，未完成时保留原文并显示 `PARTIAL` 或 `FAILED`。返回状态 `GENERATED_UNVERIFIED` 表示模型文字尚未经过逐句事实核查。默认模型禁用时，入库与词法检索仍可用。
+“基于证据回答”只在服务端已有 `ASSISTANT_PROVIDER` 配置且可用时调用该模型。它把当前问题和前五个命中片段传给模型，要求分别输出中文和英文回答，并在两种语言的事实陈述后使用 `[C1]` 等编号；无命中时不调用模型，无引用或引用超出范围时拒绝展示回答。普通检索先返回原文，再后台请求译文；回答接口先返回双语文字与原文引用，页面随后补齐证据译文。译文最多处理前五条、逐条生成；JSON 输出无效时尝试一次纯文本翻译，明显过短的译文会被拒收；失败时保留原文并显示 `PARTIAL` 或 `FAILED`。返回状态 `GENERATED_UNVERIFIED` 表示模型文字尚未经过逐句事实核查。默认模型禁用时，入库与词法检索仍可用。
 
 当前助手侧栏与文献问答是两个独立入口，五节点 DEMO 工作流也没有自动读取文献。文献上传不会让 DEMO 节点变成真实研究执行。
 
@@ -17,13 +17,13 @@
 - `GET /api/literature/documents?projectId=UUID`：列出项目文献。
 - `POST /api/literature/documents`：multipart 表单 `projectId`、`title`、`file`；返回文献记录。
 - `GET /api/literature/documents/{id}/file`：校验哈希后返回原文件，PDF 可附 `#page=N` 定位。
-- `GET /api/literature/search?projectId=UUID&q=...&limit=5&documentId=UUID`：`documentId` 可省略，省略时检索项目全部文献；提供时只检索该项目中的指定文献。`SearchResult {query,retrievalVersion,hits}`，`limit` 为 1 至 20。
+- `GET /api/literature/search?projectId=UUID&q=...&limit=5&documentId=UUID&translate=false`：`documentId` 可省略，省略时检索项目全部文献；提供时只检索该项目中的指定文献。`translate=false` 可先取原文命中，省略时生成译文。`SearchResult {query,retrievalVersion,hits,semanticStatus,translationStatus,indexedChunks,totalChunks}`，`limit` 为 1 至 20。
 - `POST /api/literature/index`：`{projectId,documentId?}`；显式补建最多 200 段向量索引，返回当前覆盖数与剩余数。
 - `POST /api/literature/answer`：`{projectId,question,documentId?}`；范围规则与检索一致。先返回 `answerZh`、`answerEn`、原文引用和 `translationStatus=NOT_REQUESTED`；页面随后调用检索接口补齐译文。也可能返回模型未配置、调用失败或引用错误。
 
 ## 本机双语模型实验
 
-本机可在 `compose.yaml` 与 `compose.local.yaml` 上追加 `compose.llama.local.yaml`。它用官方 llama.cpp CPU 服务镜像分别运行 BGE-M3 Q8 向量模型与 Qwen3 4B Q4 回答/翻译模型，放在本项目内部模型网络，不发布模型端口。先把已核对 SHA-256 的 GGUF 放入 `.local/models/`，再运行 `scripts/local-docker.ps1 -Action llama-up`；脚本会重新验算文件哈希。CPU 速度需实测，之后可评估 GPU 镜像。
+本机可在 `compose.yaml` 与 `compose.local.yaml` 上追加 `compose.llama.local.yaml`。它用官方 llama.cpp CPU 服务镜像分别运行 BGE-M3 Q8 向量模型与 Qwen3 4B Q4 回答/翻译模型，放在本项目内部模型网络，不发布模型端口。BGE-M3 的物理批大小设为 2048，以处理本项目现有的中文 PDF 长片段。先把已核对 SHA-256 的 GGUF 放入 `.local/models/`，再运行 `scripts/local-docker.ps1 -Action llama-up`；脚本会重新验算文件哈希。CPU 速度需实测，之后可评估 GPU 镜像。
 
 也可追加 `compose.model-runner.local.yaml`，在 Docker Desktop Settings → AI 开启 Model Runner 与 GPU 推理，运行 `scripts/local-docker.ps1 -Action runner-up`。该路径通过容器内的 `http://model-runner.docker.internal/engines/v1` 调用模型，无须开放宿主 TCP。Model Runner 在 Windows 由 Docker Desktop 沙箱运行，不属于本项目 Compose 隔离；其当前可用性需单独验收。GPU 可用性、速度和真实研报质量必须分别实测。
 

@@ -51,8 +51,9 @@ public class LiteratureApi {
 
     @GetMapping("/search")
     public SearchResult search(@RequestParam UUID projectId,@RequestParam String q,
-                               @RequestParam(required=false) UUID documentId,@RequestParam(defaultValue="5") int limit) {
-        return service.search(projectId.toString(),documentId==null?null:documentId.toString(),q,limit);
+                               @RequestParam(required=false) UUID documentId,@RequestParam(defaultValue="5") int limit,
+                               @RequestParam(defaultValue="true") boolean translate) {
+        return service.search(projectId.toString(),documentId==null?null:documentId.toString(),q,limit,translate);
     }
 
     @PostMapping("/index")

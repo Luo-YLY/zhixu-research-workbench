@@ -43,14 +43,17 @@ public class LiteratureService {
     private final ProjectStore projects;
     private final AssistantGateway gateway;
     private final AuditLog audit;
+    private final double minCosine;
     public LiteratureService(@Value("${workbench.data-dir}") String directory,LiteratureParser parser,
                              LiteratureChunks splitter,LiteratureStore store,LiteratureEmbeddingStore embeddingStore,
                              LiteratureEmbeddings embeddings,LiteratureSearch ranking,LiteratureBilingual bilingual,
-                             ProjectStore projects,AssistantGateway gateway,AuditLog audit) {
+                             ProjectStore projects,AssistantGateway gateway,AuditLog audit,
+                             @Value("${workbench.literature.embedding.min-cosine:0.30}") double minCosine) {
+        if(minCosine<0||minCosine>1) throw new IllegalArgumentException("Invalid minimum embedding cosine");
         this.root=Path.of(directory).toAbsolutePath().normalize().resolve("literature");
         this.parser=parser;this.splitter=splitter;this.store=store;this.embeddingStore=embeddingStore;
         this.embeddings=embeddings;this.ranking=ranking;this.bilingual=bilingual;
-        this.projects=projects;this.gateway=gateway;this.audit=audit;
+        this.projects=projects;this.gateway=gateway;this.audit=audit;this.minCosine=minCosine;
     }
 
     public List<LiteratureApi.Document> documents(String projectId) {
@@ -111,7 +114,11 @@ public class LiteratureService {
     }
 
     public LiteratureApi.SearchResult search(String projectId,String documentId,String query,int limit) {
-        return retrieve(projectId,documentId,query,limit,true);
+        return search(projectId,documentId,query,limit,true);
+    }
+
+    public LiteratureApi.SearchResult search(String projectId,String documentId,String query,int limit,boolean translate) {
+        return retrieve(projectId,documentId,query,limit,translate);
     }
 
     public LiteratureApi.IndexResult index(String projectId,String documentId) {
@@ -159,7 +166,7 @@ public class LiteratureService {
                 try {
                     float[] queryVector=embeddings.embed(List.of(clean)).getFirst();
                     hits=hybrid(chunks,lexical,vectors,queryVector,limit);
-                    version="hybrid-bm25-embedding-v1";
+                    version="hybrid-bm25-embedding-v2";
                 } catch(Exception e) {
                     log.warn("Literature semantic search failed ({})",e.getClass().getSimpleName());
                     semanticStatus="FAILED";
@@ -174,17 +181,35 @@ public class LiteratureService {
     private List<LiteratureApi.Hit> hybrid(List<LiteratureStore.IndexedChunk> chunks,List<LiteratureApi.Hit> lexical,
                                             Map<String,LiteratureEmbeddingStore.Stored> vectors,float[] query,int limit) {
         Map<String,Double> score=new HashMap<>();
-        for(int i=0;i<lexical.size();i++) score.merge(lexical.get(i).chunkId(),1.0/(60+i+1),Double::sum);
         var semantic=new ArrayList<Map.Entry<String,Double>>();
+        Set<String> indexedChunks=new HashSet<>();
         for(var chunk:chunks) {
             var vector=vectors.get(chunk.chunkId());
             if(!current(vector,chunk)||vector.vector().length!=query.length) continue;
+            indexedChunks.add(chunk.chunkId());
             double cosine=0;
             for(int i=0;i<query.length;i++) cosine+=query[i]*vector.vector()[i];
-            if(cosine>=0.30) semantic.add(Map.entry(chunk.chunkId(),cosine));
+            if(cosine>=minCosine) semantic.add(Map.entry(chunk.chunkId(),cosine));
         }
         semantic.sort(Map.Entry.<String,Double>comparingByValue().reversed().thenComparing(Map.Entry::getKey));
-        for(int i=0;i<Math.min(50,semantic.size());i++) score.merge(semantic.get(i).getKey(),1.0/(60+i+1),Double::sum);
+        if(!semantic.isEmpty()) {
+            // An exact English keyword in boilerplate must not outweigh a much closer
+            // cross-language match. Keep only semantic candidates near the best match.
+            double floor=Math.max(minCosine,semantic.getFirst().getValue()-0.06);
+            for(var candidate:semantic) {
+                if(candidate.getValue()<floor) break;
+                score.put(candidate.getKey(),candidate.getValue());
+            }
+        }
+        double bestLexical=lexical.isEmpty()?1.0:lexical.getFirst().score();
+        for(var hit:lexical) {
+            if(score.containsKey(hit.chunkId())) {
+                score.merge(hit.chunkId(),0.02*hit.score()/bestLexical,Double::sum);
+            } else if(!indexedChunks.contains(hit.chunkId())) {
+                // Unindexed documents retain lexical retrieval while an index is partial.
+                score.put(hit.chunkId(),semantic.isEmpty()?hit.score():0.20+0.10*hit.score()/bestLexical);
+            }
+        }
         return chunks.stream().filter(c->score.containsKey(c.chunkId()))
                 .map(c->LiteratureSearch.hit(c,Math.round(score.get(c.chunkId())*1000000.0)/1000000.0))
                 .sorted(Comparator.comparingDouble(LiteratureApi.Hit::score).reversed()

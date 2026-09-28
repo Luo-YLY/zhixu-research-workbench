@@ -31,6 +31,7 @@ workbench:
       model: ${EMBEDDING_MODEL:}
       api-key: ${EMBEDDING_API_KEY:}
       revision: ${EMBEDDING_REVISION:v1}
+      min-cosine: ${EMBEDDING_MIN_COSINE:0.30}
   assistant:
     provider: ${ASSISTANT_PROVIDER:disabled}
     timeout-seconds: 180

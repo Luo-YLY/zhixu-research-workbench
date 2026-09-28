@@ -24,7 +24,7 @@ class LiteratureAnswerTest {
         when(gateway.status()).thenReturn(new AssistantGateway.Availability("TEST",true,"", ""));
         var service=new LiteratureService("target/test-answer-data",parser,chunks,store,
                 mock(LiteratureEmbeddingStore.class),embeddings,new LiteratureSearch(),new LiteratureBilingual(gateway),
-                projects,gateway,mock(AuditLog.class));
+                projects,gateway,mock(AuditLog.class),0.30);
         when(gateway.answerJson(anyString(),any())).thenReturn(
                 "{\"zh\":\"有证据 [C1]。\",\"en\":\"Evidence is present [C1].\"}",
                 "{\"zh\":\"没有证据 [C2]。\",\"en\":\"Unsupported [C2].\"}");

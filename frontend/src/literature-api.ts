@@ -36,9 +36,9 @@ export async function uploadLiterature(projectId: string, title: string, file: F
   return readResponse(await fetch('/api/literature/documents', { method: 'POST', body: data }))
 }
 
-export async function searchLiterature(projectId: string, query: string, documentId = ''): Promise<LiteratureSearchResult> {
+export async function searchLiterature(projectId: string, query: string, documentId = '', translate = true): Promise<LiteratureSearchResult> {
   const scope = documentId ? `&documentId=${encodeURIComponent(documentId)}` : ''
-  return readResponse(await fetch(`/api/literature/search?projectId=${encodeURIComponent(projectId)}&q=${encodeURIComponent(query)}&limit=5${scope}`))
+  return readResponse(await fetch(`/api/literature/search?projectId=${encodeURIComponent(projectId)}&q=${encodeURIComponent(query)}&limit=5&translate=${translate}${scope}`))
 }
 
 export async function indexLiterature(projectId: string, documentId = ''): Promise<LiteratureIndexResult> {

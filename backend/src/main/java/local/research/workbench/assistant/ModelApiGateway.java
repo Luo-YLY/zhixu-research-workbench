@@ -59,6 +59,7 @@ public class ModelApiGateway implements AssistantGateway {
         if(cancelled.getAsBoolean())throw new CancellationException();
         var body=new HashMap<String,Object>();
         body.put("model",model);body.put("stream",false);
+        if(jsonMode) body.put("temperature",0);
         boolean dockerRunner="model-runner.docker.internal".equals(endpoint().getHost());
         String userPrompt=jsonMode&&(dockerRunner&&model.contains("Qwen3-")||"answer-model".equals(endpoint().getHost()))
                 ?prompt+"\n/no_think":prompt;
