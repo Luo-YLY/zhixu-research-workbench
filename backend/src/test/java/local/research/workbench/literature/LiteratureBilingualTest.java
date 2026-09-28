@@ -61,6 +61,18 @@ class LiteratureBilingualTest {
         verify(gateway).answer(anyString(),any());
     }
 
+    @Test void repairsAnEnglishAnswerInTheChineseField() throws Exception {
+        var gateway=mock(AssistantGateway.class);
+        when(gateway.answerJson(anyString(),any())).thenReturn(
+                "{\"supported\":true,\"zh\":\"Factors are updated daily [C1].\","
+                        +"\"en\":\"Factors are updated daily [C1].\"}");
+        when(gateway.answer(anyString(),any())).thenReturn("因子每天更新 [C1]。");
+        var response=new LiteratureBilingual(gateway).answer("question and evidence",1);
+        assertThat(response.zh()).isEqualTo("因子每天更新 [C1]。");
+        assertThat(response.en()).isEqualTo("Factors are updated daily [C1].");
+        verify(gateway).answer(anyString(),any());
+    }
+
     private static List<LiteratureApi.Hit> hits() {
         return IntStream.rangeClosed(1,5).mapToObj(i->new LiteratureApi.Hit(
                 "chunk-"+i,"doc","Research","paper.pdf",i,1,"source-hash","chunk-hash-"+i,

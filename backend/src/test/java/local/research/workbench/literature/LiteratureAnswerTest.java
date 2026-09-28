@@ -24,10 +24,11 @@ class LiteratureAnswerTest {
         when(gateway.status()).thenReturn(new AssistantGateway.Availability("TEST",true,"", ""));
         var service=new LiteratureService("target/test-answer-data",parser,chunks,store,
                 mock(LiteratureEmbeddingStore.class),embeddings,new LiteratureSearch(),new LiteratureBilingual(gateway),
-                projects,gateway,mock(AuditLog.class),0.30);
+                projects,gateway,mock(AuditLog.class),0.30,0.55);
         when(gateway.answerJson(anyString(),any())).thenReturn(
                 "{\"zh\":\"有证据 [C1]。\",\"en\":\"Evidence is present [C1].\"}",
-                "{\"zh\":\"没有证据 [C2]。\",\"en\":\"Unsupported [C2].\"}");
+                "{\"supported\":false}",
+                "{\"supported\":true,\"zh\":\"没有证据 [C2]。\",\"en\":\"Unsupported [C2].\"}");
         var answer=service.answer("project","factor evidence");
         assertThat(answer.status()).isEqualTo("GENERATED_UNVERIFIED");
         assertThat(answer.citations()).hasSize(1);
@@ -36,10 +37,14 @@ class LiteratureAnswerTest {
         assertThat(answer.translationStatus()).isEqualTo("NOT_REQUESTED");
         verify(gateway).answerJson(argThat(prompt->prompt.contains("PDF 物理页 2") && prompt.contains("[C1]")),any());
 
+        var insufficient=service.answer("project","factor evidence");
+        assertThat(insufficient.status()).isEqualTo("NO_EVIDENCE");
+        assertThat(insufficient.citations()).hasSize(1);
+        assertThat(insufficient.answerZh()).doesNotContain("[C1]");
         assertThatThrownBy(()->service.answer("project","factor evidence"))
                 .isInstanceOf(ApiException.class).hasMessageContaining("不存在的引用");
         when(store.chunks("project",null)).thenReturn(List.of());
         assertThat(service.answer("project","unknown").status()).isEqualTo("NO_EVIDENCE");
-        verify(gateway,times(2)).answerJson(anyString(),any());
+        verify(gateway,times(3)).answerJson(anyString(),any());
     }
 }

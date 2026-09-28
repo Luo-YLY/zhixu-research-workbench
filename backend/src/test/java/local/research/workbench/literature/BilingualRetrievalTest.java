@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.util.List;
@@ -41,7 +42,7 @@ class BilingualRetrievalTest {
         when(gateway.status()).thenReturn(new AssistantGateway.Availability("UNCONFIGURED",false,"",""));
         var service=new LiteratureService("target/test-bilingual-data",mock(LiteratureParser.class),
                 mock(LiteratureChunks.class),store,vectors,embeddings,new LiteratureSearch(),
-                new LiteratureBilingual(gateway),projects,gateway,mock(AuditLog.class),0.45);
+                new LiteratureBilingual(gateway),projects,gateway,mock(AuditLog.class),0.45,0.55);
 
         var en=service.search("project","doc-en","因子质量",5);
         assertThat(en.hits()).extracting(LiteratureApi.Hit::chunkId).containsExactly("en");
@@ -79,7 +80,7 @@ class BilingualRetrievalTest {
         when(gateway.status()).thenReturn(new AssistantGateway.Availability("UNCONFIGURED",false,"",""));
         var service=new LiteratureService("target/test-bilingual-data",mock(LiteratureParser.class),
                 mock(LiteratureChunks.class),store,vectors,embeddings,new LiteratureSearch(),
-                new LiteratureBilingual(gateway),projects,gateway,mock(AuditLog.class),0.45);
+                new LiteratureBilingual(gateway),projects,gateway,mock(AuditLog.class),0.45,0.55);
 
         var result=service.search("project",null,question,5,false);
         assertThat(result.hits()).extracting(LiteratureApi.Hit::chunkId).containsExactly("evidence");
@@ -88,5 +89,31 @@ class BilingualRetrievalTest {
         String unrelated="What is the weather in Paris tomorrow?";
         when(embeddings.embed(eq(List.of(unrelated)))).thenReturn(List.of(new float[]{-1,0}));
         assertThat(service.search("project",null,unrelated,5,false).hits()).isEmpty();
+    }
+
+    @Test void weakSemanticCandidatesAreShownWithoutGeneratingAnAnswer() throws Exception {
+        var store=mock(LiteratureStore.class);
+        var vectors=mock(LiteratureEmbeddingStore.class);
+        var embeddings=mock(LiteratureEmbeddings.class);
+        var projects=mock(ProjectStore.class);
+        var gateway=mock(AssistantGateway.class);
+        var chunk=new LiteratureStore.IndexedChunk("table","report","Factor report","report.pdf",19,1,
+                "source","sha","Annual factor performance table.");
+        when(projects.exists("project")).thenReturn(true);
+        when(store.chunks("project",null)).thenReturn(List.of(chunk));
+        when(vectors.load("project",null,"bge-m3")).thenReturn(Map.of("table",
+                new LiteratureEmbeddingStore.Stored("table","sha",new float[]{0.50f,0.8660254f})));
+        when(embeddings.available()).thenReturn(true);
+        when(embeddings.modelId()).thenReturn("bge-m3");
+        when(embeddings.embed(any())).thenReturn(List.of(new float[]{1,0}));
+        when(gateway.status()).thenReturn(new AssistantGateway.Availability("TEST",true,"",""));
+        var service=new LiteratureService("target/test-bilingual-data",mock(LiteratureParser.class),
+                mock(LiteratureChunks.class),store,vectors,embeddings,new LiteratureSearch(),
+                new LiteratureBilingual(gateway),projects,gateway,mock(AuditLog.class),0.45,0.55);
+
+        var answer=service.answer("project","Tesla vehicle deliveries in 2025 Q3");
+        assertThat(answer.status()).isEqualTo("NO_EVIDENCE");
+        assertThat(answer.citations()).hasSize(1);
+        verify(gateway,never()).answerJson(any(),any());
     }
 }
