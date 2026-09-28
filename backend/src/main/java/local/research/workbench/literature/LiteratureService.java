@@ -125,6 +125,22 @@ public class LiteratureService {
         return retrieve(projectId,documentId,query,limit,translate);
     }
 
+    public LiteratureApi.Translation translate(String projectId,String chunkId,String selected) {
+        requireProject(projectId);
+        var chunk=store.chunk(projectId,chunkId);
+        if(chunk==null) throw ApiException.notFound("项目中的文献片段");
+        String source=SourceSelection.resolve(chunk.content(),selected,600);
+        var original=LiteratureSearch.hit(chunk,0);
+        var selectedHit=new LiteratureApi.Hit(original.chunkId(),original.documentId(),original.title(),
+                original.fileName(),original.pageNumber(),original.chunkNumber(),original.documentSha256(),
+                original.chunkSha256(),source,original.score(),original.sourceUrl(),null,
+                LiteratureBilingual.language(source),null);
+        var translated=bilingual.translate(List.of(selectedHit));
+        var result=translated.hits().getFirst();
+        return new LiteratureApi.Translation(chunkId,source,result.translation(),result.originalLanguage(),
+                result.translationLanguage(),translated.status(),bilingual.modelLabel());
+    }
+
     public LiteratureApi.IndexResult index(String projectId,String documentId) {
         requireProject(projectId);
         validateDocumentScope(projectId,documentId);

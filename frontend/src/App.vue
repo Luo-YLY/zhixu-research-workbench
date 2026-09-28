@@ -15,7 +15,7 @@ const nav: { id: Page; label: string; icon: string; subtitle: string }[] = [
   { id: 'overview', label: '研究概览', icon: 'grid', subtitle: '让每一次研究，都有迹可循。' },
   { id: 'projects', label: '项目与任务', icon: 'folder', subtitle: '从一个问题开始，把研究拆成可执行的任务。' },
   { id: 'planning', label: '每日计划', icon: 'clock', subtitle: '把周期研究和当天安排放在同一张清单。' },
-  { id: 'literature', label: '文献与RAG', icon: 'book', subtitle: '保存原文，从可核对的证据出发提问。' },
+  { id: 'literature', label: '文献与证据', icon: 'book', subtitle: '定位原文，记录主张、复现步骤与核对结果。' },
   { id: 'runs', label: '运行记录', icon: 'flow', subtitle: '跟踪每一步执行，保留完整的研究过程。' },
   { id: 'approvals', label: '人工审批', icon: 'shield', subtitle: '查看任务与证据，在关键节点作出判断。' },
   { id: 'roadmap', label: '能力路线图', icon: 'map', subtitle: '先跑通研究闭环，再逐步接入真实能力。' },

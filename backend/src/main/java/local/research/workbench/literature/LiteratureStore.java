@@ -50,4 +50,16 @@ public class LiteratureStore {
                         r.getString("document_sha256"),r.getString("chunk_sha256"),r.getString("content")),
                 documentId==null?new Object[]{projectId}:new Object[]{projectId,documentId});
     }
+
+    public IndexedChunk chunk(String projectId,String chunkId) {
+        var rows=jdbc.query("SELECT c.id AS chunk_id,c.document_id,d.title,d.file_name,c.page_number,c.chunk_number,"
+                        +"d.sha256 AS document_sha256,c.sha256 AS chunk_sha256,c.content "
+                        +"FROM literature_chunk c JOIN literature_document d ON d.id=c.document_id "
+                        +"WHERE d.project_id=? AND c.id=?",
+                (r,n)->new IndexedChunk(r.getString("chunk_id"),r.getString("document_id"),r.getString("title"),
+                        r.getString("file_name"),r.getInt("page_number"),r.getInt("chunk_number"),
+                        r.getString("document_sha256"),r.getString("chunk_sha256"),r.getString("content")),
+                projectId,chunkId);
+        return rows.isEmpty()?null:rows.getFirst();
+    }
 }

@@ -19,6 +19,22 @@ export interface LiteratureAnswer {
   citations: LiteratureHit[]; semanticStatus: string; translationStatus: string; translationModel: string
 }
 export interface LiteratureIndexResult { modelId: string; indexedChunks: number; totalChunks: number; newlyIndexed: number }
+export interface EvidenceCard {
+  id: string; projectId: string; documentId: string; chunkId: string; title: string; fileName: string
+  pageNumber: number; documentSha256: string; chunkSha256: string; sourceQuote: string; sourceUrl: string
+  researchClaim: string; dataRequirements: string; availabilityNote: string; reproductionSteps: string
+  observation: string; discrepancy: string; status: 'DRAFT' | 'REVIEWED'
+  createdAt: string; updatedAt: string; reviewedAt: string | null
+}
+export interface EvidenceCardFields {
+  researchClaim: string; dataRequirements: string; availabilityNote: string
+  reproductionSteps: string; observation: string; discrepancy: string
+}
+export interface LiteratureTranslation {
+  chunkId: string; sourceText: string; translation: string | null
+  originalLanguage: 'zh' | 'en'; translationLanguage: 'zh' | 'en' | null
+  status: string; model: string
+}
 
 async function readResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => null)
@@ -57,6 +73,38 @@ export async function answerLiterature(projectId: string, question: string, docu
       body: JSON.stringify({ projectId, question, ...(documentId ? { documentId } : {}) }), signal: controller.signal,
     }))
   } finally { window.clearTimeout(timeout) }
+}
+
+export async function translateSelection(projectId: string, chunkId: string, sourceText: string): Promise<LiteratureTranslation> {
+  return readResponse(await fetch('/api/literature/translate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ projectId, chunkId, sourceText }),
+  }))
+}
+
+export async function listEvidenceCards(projectId: string): Promise<EvidenceCard[]> {
+  return readResponse(await fetch(`/api/evidence-cards?projectId=${encodeURIComponent(projectId)}`))
+}
+
+export async function createEvidenceCard(projectId: string, chunkId: string, sourceQuote: string,
+                                         fields: EvidenceCardFields): Promise<EvidenceCard> {
+  return readResponse(await fetch('/api/evidence-cards', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ projectId, chunkId, sourceQuote, ...fields }),
+  }))
+}
+
+export async function updateEvidenceCard(projectId: string, id: string, fields: EvidenceCardFields): Promise<EvidenceCard> {
+  return readResponse(await fetch(`/api/evidence-cards/${encodeURIComponent(id)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ projectId, ...fields }),
+  }))
+}
+
+export async function reviewEvidenceCard(projectId: string, id: string, reviewed: boolean): Promise<EvidenceCard> {
+  return readResponse(await fetch(`/api/evidence-cards/${encodeURIComponent(id)}/${reviewed ? 'review' : 'reopen'}?projectId=${encodeURIComponent(projectId)}`, {
+    method: 'POST',
+  }))
 }
 
 export function safeLiteratureSource(url: string): string | undefined {

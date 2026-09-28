@@ -29,6 +29,10 @@ public class LiteratureApi {
     public record AskRequest(@NotNull UUID projectId,UUID documentId,@NotBlank @Size(max=1000) String question) {}
     public record Answer(String status,String answer,String answerZh,String answerEn,String retrievalVersion,
                          List<Hit> citations,String semanticStatus,String translationStatus,String translationModel) {}
+    public record TranslateRequest(@NotNull UUID projectId,@NotNull UUID chunkId,
+                                   @NotBlank @Size(max=600) String sourceText) {}
+    public record Translation(String chunkId,String sourceText,String translation,String originalLanguage,
+                              String translationLanguage,String status,String model) {}
 
     private final LiteratureService service;
     public LiteratureApi(LiteratureService service) { this.service=service; }
@@ -65,5 +69,10 @@ public class LiteratureApi {
     public Answer answer(@Valid @RequestBody AskRequest request) {
         return service.answer(request.projectId().toString(),
                 request.documentId()==null?null:request.documentId().toString(),request.question());
+    }
+
+    @PostMapping("/translate")
+    public Translation translate(@Valid @RequestBody TranslateRequest request) {
+        return service.translate(request.projectId().toString(),request.chunkId().toString(),request.sourceText());
     }
 }
