@@ -1,0 +1,44 @@
+{
+  "projectName": "本机验收样例",
+  "search": [
+    {"id": "topic-records-en", "query": "When reproducing a research report, which source records and data availability information must be retained?", "documentTitleContains": "本机验收样本文献"},
+    {"id": "topic-records-zh", "query": "研报复现需要保留哪些来源和数据可用时间记录？", "documentTitleContains": "本机验收样本文献"},
+    {"id": "topic-chip-en", "query": "How is the chip distribution factor constructed from trading volume and historical cost basis?", "documentTitleContains": "筹码分布因子系统构建"},
+    {"id": "topic-chip-zh", "query": "筹码分布因子如何利用历史成交量与持仓成本构建？", "documentTitleContains": "筹码分布因子系统构建"},
+    {"id": "topic-ai-en", "query": "How does the AI investment research tool connect factor generation, strategy construction and backtest analysis?", "documentTitleContains": "一体化AI投研工具"},
+    {"id": "topic-ai-zh", "query": "AI投研工具如何串联因子生成、策略构建与回测分析？", "documentTitleContains": "一体化AI投研工具"},
+    {"id": "topic-ubs-en", "query": "How does the UBS report use machine learning to interpret quality factors?", "documentTitleContains": "UBS-"},
+    {"id": "topic-ubs-zh", "query": "UBS研报如何用机器学习解释质量因子？", "documentTitleContains": "UBS-"},
+    {"id": "chip-inputs-en", "query": "Which intraday price and volume data and daily turnover input are needed to update the chip peak at each price level?", "documentTitleContains": "筹码分布因子系统构建", "page": 6},
+    {"id": "chip-inputs-zh", "query": "逐价位更新筹码峰时需要哪几类分钟级数据和日频换手率？", "documentTitleContains": "筹码分布因子系统构建", "page": 6},
+    {"id": "ai-modules-en", "query": "Which three training modules are proposed for the OpenClaw index strategy reproduction exercise?", "documentTitleContains": "一体化AI投研工具", "page": 16},
+    {"id": "ai-modules-zh", "query": "OpenClaw复现指数策略时需要补充哪三个训练模块？", "documentTitleContains": "一体化AI投研工具", "page": 16},
+    {"id": "ubs-inputs-en", "query": "Which economic blocks form the candidate inputs for the machine-learning quality model, and are their weights fixed?", "documentTitleContains": "UBS-", "page": 12},
+    {"id": "ubs-inputs-zh", "query": "机器学习质量模型的候选输入涵盖哪些经济维度？这些维度的权重是否固定？", "documentTitleContains": "UBS-", "page": 12},
+    {"id": "holdout-records-zh", "query": "为了让实证研究可复现，如何留下原始资料指纹与数据时点？", "documentTitleContains": "本机验收样本文献"},
+    {"id": "holdout-chip-en", "query": "Which market observations feed the recursive estimate of the remaining shares' purchase cost?", "documentTitleContains": "筹码分布因子系统构建", "page": 6},
+    {"id": "holdout-ai-en", "query": "What training covers stock pool screening, portfolio weight constraints and trading cost assumptions?", "documentTitleContains": "一体化AI投研工具", "page": 16},
+    {"id": "holdout-ubs-zh", "query": "财务健康、会计质量与宏观条件在质量预测模型中属于什么输入？", "documentTitleContains": "UBS-", "page": 12},
+    {"id": "negative-weather", "query": "What will the weather be in Paris tomorrow?", "expectedNoHits": true},
+    {"id": "negative-tesla", "query": "这几篇研报里哪篇给出了2025年特斯拉第三季度汽车交付量？", "expectedNoHits": true},
+    {"id": "negative-nvidia", "query": "What was NVIDIA's reported gross margin in the second quarter of 2025?", "expectedNoHits": true},
+    {"id": "negative-apple", "query": "哪篇报告列出了苹果公司2025年的股息率和每股股息？", "expectedNoHits": true},
+    {"id": "negative-bitcoin", "query": "What was the exact Bitcoin price at 09:00 UTC on 1 July 2025?", "expectedNoHits": true},
+    {"id": "negative-medical", "query": "这些文献给出的阿尔茨海默病临床试验样本量是多少？", "expectedNoHits": true},
+    {"id": "negative-etf", "query": "Which report lists actual ETF arbitrage trades executed by our team in September 2026?", "expectedNoHits": true}
+  ],
+  "translation": [
+    {"id": "translate-chip-en", "query": "Which intraday price and volume data and daily turnover input are needed to update the chip peak at each price level?", "documentTitleContains": "筹码分布因子系统构建", "page": 6, "required": ["中信建投", "chip distribution"], "forbidden": ["China Evergrande Construction"]},
+    {"id": "translate-records-en", "query": "When reproducing a research report, which three records must be retained?", "documentTitleContains": "本机验收样本文献", "page": 1, "required": ["SHA-256", "source"]},
+    {"id": "translate-ubs-zh", "query": "Which economic blocks form the candidate inputs for the machine-learning quality model, and are their weights fixed?", "documentTitleContains": "UBS-", "page": 12, "required": ["盈利"]}
+  ],
+  "answer": [
+    {"id": "answer-records", "question": "When reproducing a research report, which three records must be retained?", "expectedStatus": "GENERATED_UNVERIFIED", "requiredCitationDocumentTitleContains": "本机验收样本文献", "requiredTermsZh": ["来源文件", "SHA-256", "数据可用时间"], "requiredTermsEn": ["source file", "SHA-256", "data availability"]},
+    {"id": "answer-weather", "question": "What will the weather be in Paris tomorrow?", "expectedStatus": "NO_EVIDENCE"},
+    {"id": "answer-tesla", "question": "这几篇研报里哪篇给出了2025年特斯拉第三季度汽车交付量？", "expectedStatus": "NO_EVIDENCE"},
+    {"id": "answer-ai", "question": "How does the AI investment research tool connect factor generation, strategy construction and backtest analysis?", "expectedStatus": "GENERATED_UNVERIFIED", "requiredCitationDocumentTitleContains": "一体化AI投研工具"},
+    {"id": "answer-chip", "question": "How is the chip distribution factor constructed from historical trading volume and prices?", "expectedStatus": "GENERATED_UNVERIFIED", "requiredCitationDocumentTitleContains": "筹码分布因子系统构建", "requiredCitationPage": 6, "slow": true},
+    {"id": "answer-ai-modules", "question": "Which three training modules does the OpenClaw index strategy reproduction require?", "expectedStatus": "GENERATED_UNVERIFIED", "requiredCitationDocumentTitleContains": "一体化AI投研工具", "requiredCitationPage": 16, "requiredTermsZh": ["选股", "组合", "回测"], "requiredTermsEn": ["selection", "portfolio", "backtest"], "slow": true},
+    {"id": "answer-ubs-inputs", "question": "List every candidate feature family in the UBS machine-learning Quality model and state whether the model uses fixed weights.", "expectedStatus": "GENERATED_UNVERIFIED", "requiredCitationDocumentTitleContains": "UBS-", "requiredCitationPage": 12, "requiredTermsEn": ["profitability", "accounting quality", "financial health", "stability", "efficiency", "management", "macro"], "slow": true}
+  ]
+}

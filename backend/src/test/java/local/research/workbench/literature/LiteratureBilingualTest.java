@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
 import java.util.List;
 import java.util.stream.IntStream;
 import local.research.workbench.assistant.AssistantGateway;
@@ -71,6 +72,38 @@ class LiteratureBilingualTest {
         assertThat(response.zh()).isEqualTo("因子每天更新 [C1]。");
         assertThat(response.en()).isEqualTo("Factors are updated daily [C1].");
         verify(gateway).answer(anyString(),any());
+    }
+
+    @Test void rejectsMistranslatedInstitutionWithoutAnotherLongModelCall() throws Exception {
+        var gateway=mock(AssistantGateway.class);
+        when(gateway.status()).thenReturn(new AssistantGateway.Availability("TEST",true,"",""));
+        when(gateway.answerJson(anyString(),any())).thenReturn(
+                "{\"translation\":\"Trading volume distribution. Source: China Evergrande Construction.\"}");
+        var hit=new LiteratureApi.Hit("chunk","doc","Report","paper.pdf",6,1,"source","sha",
+                "筹码分布每天更新。\n资料来源：中信建投",1,
+                "/api/literature/documents/doc/file#page=6",null,"zh",null);
+        var translated=new LiteratureBilingual(gateway).translate(List.of(hit));
+        assertThat(translated.status()).isEqualTo("FAILED");
+        assertThat(translated.hits().getFirst().translation()).isNull();
+        verify(gateway,never()).answer(anyString(),any());
+    }
+
+    @Test void restoresProtectedTermsWithoutAskingModelToTranslateThem() throws Exception {
+        var gateway=mock(AssistantGateway.class);
+        when(gateway.status()).thenReturn(new AssistantGateway.Availability("TEST",true,"",""));
+        when(gateway.answerJson(anyString(),any())).thenReturn(
+                "{\"translation\":\"ZXQTERM0ZXQ is updated daily. Source: ZXQORG0ZXQ.\"}");
+        var hit=new LiteratureApi.Hit("chunk","doc","Report","paper.pdf",6,1,"source","sha",
+                "筹码分布每天更新。\n资料来源：中信建投",1,
+                "/api/literature/documents/doc/file#page=6",null,"zh",null);
+        var translated=new LiteratureBilingual(gateway).translate(List.of(hit));
+        assertThat(translated.status()).isEqualTo("GENERATED_UNVERIFIED");
+        assertThat(translated.hits().getFirst().translation())
+                .isEqualTo("chip distribution is updated daily. Source: 中信建投.");
+        var prompt=ArgumentCaptor.forClass(String.class);
+        verify(gateway).answerJson(prompt.capture(),any());
+        assertThat(prompt.getValue()).contains("ZXQTERM0ZXQ", "ZXQORG0ZXQ")
+                .doesNotContain("中信建投", "筹码分布");
     }
 
     private static List<LiteratureApi.Hit> hits() {

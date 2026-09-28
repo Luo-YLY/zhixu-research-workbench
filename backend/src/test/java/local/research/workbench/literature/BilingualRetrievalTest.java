@@ -46,7 +46,7 @@ class BilingualRetrievalTest {
 
         var en=service.search("project","doc-en","因子质量",5);
         assertThat(en.hits()).extracting(LiteratureApi.Hit::chunkId).containsExactly("en");
-        assertThat(en.retrievalVersion()).isEqualTo("hybrid-bm25-embedding-v2");
+        assertThat(en.retrievalVersion()).isEqualTo("hybrid-bm25-embedding-v3");
         assertThat(en.semanticStatus()).isEqualTo("READY");
         assertThat(en.hits().getFirst().excerpt()).isEqualTo(english.content());
         var zh=service.search("project","doc-zh","factor quality",5);

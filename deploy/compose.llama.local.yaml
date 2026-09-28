@@ -10,7 +10,7 @@ services:
       EMBEDDING_BASE_URL: http://embed:8080/v1
       EMBEDDING_MODEL: bge-m3
       EMBEDDING_REVISION: llama-bge-m3-q8-v1
-      EMBEDDING_MIN_COSINE: "0.45"
+      EMBEDDING_MIN_COSINE: "0.53"
     networks:
       - private
       - access
